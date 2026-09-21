@@ -6,33 +6,41 @@
 # See the solution video in the 100 Days of Python Course for explainations.
 
 
-from datetime import datetime
-import pandas
+import datetime as dt
+import os
 import random
 import smtplib
-import os
+import pandas
 
-# import os and use it to get the Github repository secrets
-MY_EMAIL = os.environ.get("MY_EMAIL")
-MY_PASSWORD = os.environ.get("MY_PASSWORD")
+# Read credentials passed in by GitHub Actions
+my_email = os.environ.get("MY_EMAIL")
+my_password = os.environ.get("MY_PASSWORD")
 
-today = datetime.now()
-today_tuple = (today.month, today.day)
+today = dt.datetime.now()
+month = today.month
+day = today.day
+today_date = (month, day)
 
-data = pandas.read_csv("birthdays.csv")
-birthdays_dict = {(data_row["month"], data_row["day"])                  : data_row for (index, data_row) in data.iterrows()}
-if today_tuple in birthdays_dict:
-    birthday_person = birthdays_dict[today_tuple]
-    file_path = f"letter_templates/letter_{random.randint(1, 3)}.txt"
-    with open(file_path) as letter_file:
-        contents = letter_file.read()
-        contents = contents.replace("[NAME]", birthday_person["name"])
+birthdays = pandas.read_csv("birthdays.csv")
+birthdays_list = {
+    (row.month, row.day): row for (index, row) in birthdays.iterrows()
+}
 
-    with smtplib.SMTP("YOUR EMAIL PROVIDER SMTP SERVER ADDRESS") as connection:
+if today_date in birthdays_list:
+    number = random.randint(1, 3)
+    person = birthdays_list[today_date]["person_name"]
+    person_email = birthdays_list[today_date]["email"]
+
+    with open(f"letter_templates/letter_{number}.txt", "r") as letter_file:
+        file = letter_file.read()
+        new_letter = file.replace("[NAME]", person)
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as connection:
+        message = f"Subject: Happy Birthday dear 🥳🎂! \n\n {new_letter}"
         connection.starttls()
-        connection.login(MY_EMAIL, MY_PASSWORD)
+        connection.login(user=my_email, password=my_password)
         connection.sendmail(
-            from_addr=MY_EMAIL,
-            to_addrs=birthday_person["email"],
-            msg=f"Subject:Happy Birthday!\n\n{contents}"
+            from_addr=my_email,
+            to_addrs=person_email,
+            msg=message.encode("utf-8"),
         )
